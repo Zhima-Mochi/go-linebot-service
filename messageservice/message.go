@@ -2,6 +2,7 @@ package messageservice
 
 import (
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/factory"
+	"github.com/Zhima-Mochi/go-linebot-service/messageservice/factory/echo"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
@@ -12,7 +13,7 @@ type MessageService struct {
 
 func NewMessageService() *MessageService {
 	return &MessageService{
-		defaultMessageCore:       nil,
+		defaultMessageCore:       echo.NewMessageCore(),
 		customMessageTypeCoreMap: make(map[linebot.MessageType]factory.MessageCore),
 	}
 }
@@ -36,6 +37,6 @@ func (m *MessageService) GetCustomMessageTypeCore(messageType linebot.MessageTyp
 	return m.defaultMessageCore
 }
 
-func (m *MessageService) Process(message linebot.Message) (linebot.Message, error) {
+func (m *MessageService) Process(message linebot.Message) (linebot.SendingMessage, error) {
 	return m.GetCustomMessageTypeCore(message.Type()).Process(message)
 }
