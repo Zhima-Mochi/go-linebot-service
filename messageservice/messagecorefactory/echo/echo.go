@@ -3,7 +3,7 @@ package echo
 import (
 	"fmt"
 
-	"github.com/Zhima-Mochi/go-linebot-service/messageservice/factory"
+	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
@@ -34,7 +34,7 @@ func (m *MessageCore) Process(message linebot.Message) (linebot.SendingMessage, 
 	case *linebot.FlexMessage:
 		return linebot.NewFlexMessage(message.AltText, message.Contents), nil
 	}
-	return nil, factory.ErrorMessageTypeNotSupported
+	return nil, messagecorefactory.ErrorMessageTypeNotSupported
 }
 
 func NewMessageCore() *MessageCore {

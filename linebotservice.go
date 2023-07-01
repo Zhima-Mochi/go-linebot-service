@@ -5,15 +5,15 @@ import (
 	"net/http"
 
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice"
-	messageserviceFactory "github.com/Zhima-Mochi/go-linebot-service/messageservice/factory"
+	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
 type MessageService interface {
-	SetDefaultMessageCore(messageCore messageserviceFactory.MessageCore)
-	GetDefaultMessageCore() messageserviceFactory.MessageCore
-	SetCustomMessageTypeCore(messageType linebot.MessageType, messageCore messageserviceFactory.MessageCore)
-	GetCustomMessageTypeCore(messageType linebot.MessageType) messageserviceFactory.MessageCore
+	SetDefaultMessageCore(messageCore messagecorefactory.MessageCore)
+	GetDefaultMessageCore() messagecorefactory.MessageCore
+	SetCustomMessageTypeCore(messageType linebot.MessageType, messageCore messagecorefactory.MessageCore)
+	GetCustomMessageTypeCore(messageType linebot.MessageType) messagecorefactory.MessageCore
 	Process(message linebot.Message) (linebot.SendingMessage, error)
 }
 
