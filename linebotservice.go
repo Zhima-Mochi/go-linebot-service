@@ -14,6 +14,8 @@ type MessageService interface {
 	GetDefaultMessageCore() messagecorefactory.MessageCore
 	SetCustomMessageTypeCore(messageType linebot.MessageType, messageCore messagecorefactory.MessageCore)
 	GetCustomMessageTypeCore(messageType linebot.MessageType) messagecorefactory.MessageCore
+	ClearCustomMessageTypeCore(messageType linebot.MessageType)
+	ClearAllCustomMessageTypeCore()
 	Process(message linebot.Message) (linebot.SendingMessage, error)
 }
 

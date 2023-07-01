@@ -37,6 +37,14 @@ func (m *MessageService) GetCustomMessageTypeCore(messageType linebot.MessageTyp
 	return m.defaultMessageCore
 }
 
+func (m *MessageService) ClearCustomMessageTypeCore(messageType linebot.MessageType) {
+	delete(m.customMessageTypeCoreMap, messageType)
+}
+
+func (m *MessageService) ClearAllCustomMessageTypeCore() {
+	m.customMessageTypeCoreMap = make(map[linebot.MessageType]messagecorefactory.MessageCore)
+}
+
 func (m *MessageService) Process(message linebot.Message) (linebot.SendingMessage, error) {
 	return m.GetCustomMessageTypeCore(message.Type()).Process(message)
 }
