@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Zhima-Mochi/go-linebot-service/messageservice"
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
@@ -24,16 +23,17 @@ type LineBotService struct {
 	MessageService MessageService
 }
 
-func NewLineBotService(lineBotClient *linebot.Client) *LineBotService {
+func NewLineBotService(lineBotClient *linebot.Client, messageService MessageService) *LineBotService {
 	return &LineBotService{
 		LineBotClient:  lineBotClient,
-		MessageService: messageservice.NewMessageService(),
+		MessageService: messageService,
 	}
 }
 
 func (l *LineBotService) Do(w http.ResponseWriter, req *http.Request) {
 	events, err := l.LineBotClient.ParseRequest(req)
 	if err != nil {
+		log.Print(err)
 		if err == linebot.ErrInvalidSignature {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
