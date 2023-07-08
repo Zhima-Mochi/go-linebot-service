@@ -13,3 +13,21 @@ func WithMemoryN(memoryN int) WithOptoin {
 		messageCore.memoryN = memoryN
 	}
 }
+
+func WithChatModel(chatModel string) WithOptoin {
+	return func(messageCore *MessageCore) {
+		messageCore.chatModel = chatModel
+	}
+}
+
+func WithChatToken(chatToken int) WithOptoin {
+	return func(messageCore *MessageCore) {
+		messageCore.chatToken = chatToken
+	}
+}
+
+func WithChatTemperature(chatTemperature float32) WithOptoin {
+	return func(messageCore *MessageCore) {
+		messageCore.chatTemperature = chatTemperature
+	}
+}

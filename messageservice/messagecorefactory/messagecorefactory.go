@@ -8,6 +8,8 @@ import (
 
 var (
 	ErrorMessageTypeNotSupported = errors.New("MessageType not supported")
+
+	ErrorAudioDownloadFailed = errors.New("audio download failed")
 )
 
 type MessageCore interface {
