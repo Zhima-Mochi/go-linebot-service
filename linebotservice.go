@@ -15,7 +15,7 @@ type MessageService interface {
 	GetCustomMessageTypeCore(messageType linebot.MessageType) messagecorefactory.MessageCore
 	ClearCustomMessageTypeCore(messageType linebot.MessageType)
 	ClearAllCustomMessageTypeCore()
-	Process(message linebot.Message) (linebot.SendingMessage, error)
+	Process(event *linebot.Event) (linebot.SendingMessage, error)
 }
 
 type LineBotService struct {
@@ -44,7 +44,7 @@ func (l *LineBotService) Do(w http.ResponseWriter, req *http.Request) {
 
 	for _, event := range events {
 		if event.Type == linebot.EventTypeMessage {
-			message, err := l.MessageService.Process(event.Message)
+			message, err := l.MessageService.Process(event)
 			if err != nil {
 				log.Print(err)
 			}

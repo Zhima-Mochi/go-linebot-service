@@ -73,12 +73,12 @@ func NewMessageCore(client *openai.Client, options ...WithOptoin) *MessageCore {
 	return &core
 }
 
-func (m *MessageCore) Process(message linebot.Message) (linebot.SendingMessage, error) {
+func (m *MessageCore) Process(event *linebot.Event) (linebot.SendingMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	userMessage := ""
 	replyText := ""
-	switch message := message.(type) {
+	switch message := event.Message.(type) {
 	case *linebot.TextMessage:
 		userMessage = message.Text
 	case *linebot.AudioMessage:

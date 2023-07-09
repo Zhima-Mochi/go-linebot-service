@@ -13,5 +13,5 @@ var (
 )
 
 type MessageCore interface {
-	Process(message linebot.Message) (linebot.SendingMessage, error)
+	Process(event *linebot.Event) (linebot.SendingMessage, error)
 }

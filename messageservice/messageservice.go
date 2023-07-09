@@ -45,6 +45,6 @@ func (m *MessageService) ClearAllCustomMessageTypeCore() {
 	m.customMessageTypeCoreMap = make(map[linebot.MessageType]messagecorefactory.MessageCore)
 }
 
-func (m *MessageService) Process(message linebot.Message) (linebot.SendingMessage, error) {
-	return m.GetCustomMessageTypeCore(message.Type()).Process(message)
+func (m *MessageService) Process(event *linebot.Event) (linebot.SendingMessage, error) {
+	return m.GetCustomMessageTypeCore(event.Message.Type()).Process(event)
 }

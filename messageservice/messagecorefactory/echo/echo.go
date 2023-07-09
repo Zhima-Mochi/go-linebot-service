@@ -10,8 +10,8 @@ import (
 type MessageCore struct {
 }
 
-func (m *MessageCore) Process(message linebot.Message) (linebot.SendingMessage, error) {
-	switch message := message.(type) {
+func (m *MessageCore) Process(event *linebot.Event) (linebot.SendingMessage, error) {
+	switch message := event.Message.(type) {
 	case *linebot.FileMessage:
 		return linebot.NewTextMessage(fmt.Sprintf("FileMessage: %s (%d byte)", message.FileName, message.FileSize)), nil
 	case *linebot.TextMessage:
