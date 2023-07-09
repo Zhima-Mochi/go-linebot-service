@@ -23,29 +23,29 @@ var (
 )
 
 type Memory interface {
-	Remember(message openai.ChatCompletionMessage)
+	Remember(ctx context.Context, message openai.ChatCompletionMessage)
 	// Recall the last n messages
-	Recall(n int) []openai.ChatCompletionMessage
+	Recall(ctx context.Context, n int) []openai.ChatCompletionMessage
 	// Revoke the last n messages
-	Revoke(n int) []openai.ChatCompletionMessage
+	Revoke(ctx context.Context, n int) []openai.ChatCompletionMessage
 }
 
 type localMemory struct {
 	messages []openai.ChatCompletionMessage
 }
 
-func (l *localMemory) Remember(message openai.ChatCompletionMessage) {
+func (l *localMemory) Remember(ctx context.Context, message openai.ChatCompletionMessage) {
 	l.messages = append(l.messages, message)
 }
 
-func (l *localMemory) Recall(n int) []openai.ChatCompletionMessage {
+func (l *localMemory) Recall(ctx context.Context, n int) []openai.ChatCompletionMessage {
 	if n > len(l.messages) {
 		n = len(l.messages)
 	}
 	return l.messages[len(l.messages)-n:]
 }
 
-func (l *localMemory) Revoke(n int) []openai.ChatCompletionMessage {
+func (l *localMemory) Revoke(ctx context.Context, n int) []openai.ChatCompletionMessage {
 	if n > len(l.messages) {
 		n = len(l.messages)
 	}
@@ -109,8 +109,8 @@ func (m *MessageCore) Chat(ctx context.Context, message string) (string, error) 
 		Role:    openai.ChatMessageRoleUser,
 		Content: message,
 	}
-	m.memory.Remember(newMessage)
-	messages := m.memory.Recall(m.memoryN)
+	m.memory.Remember(ctx, newMessage)
+	messages := m.memory.Recall(ctx, m.memoryN)
 	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       m.chatModel,
 		Messages:    messages,
@@ -122,7 +122,7 @@ func (m *MessageCore) Chat(ctx context.Context, message string) (string, error) 
 		return "", err
 	}
 	replyMessage := resp.Choices[0].Message
-	m.memory.Remember(replyMessage)
+	m.memory.Remember(ctx, replyMessage)
 	return replyMessage.Content, nil
 }
 
