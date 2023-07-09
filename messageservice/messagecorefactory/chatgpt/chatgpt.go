@@ -13,7 +13,9 @@ import (
 
 var (
 	defaultMessageCore = MessageCore{
-		memory:          &localMemory{},
+		memory: &localMemory{
+			messages: make(map[string][]openai.ChatCompletionMessage),
+		},
 		memoryN:         3,
 		chatModel:       openai.GPT3Dot5Turbo0613,
 		chatToken:       150,
@@ -23,35 +25,35 @@ var (
 )
 
 type Memory interface {
-	Remember(ctx context.Context, message openai.ChatCompletionMessage)
+	Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage)
 	// Recall the last n messages
-	Recall(ctx context.Context, n int) []openai.ChatCompletionMessage
+	Recall(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage
 	// Revoke the last n messages
-	Revoke(ctx context.Context, n int) []openai.ChatCompletionMessage
+	Revoke(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage
 }
 
 type localMemory struct {
-	messages []openai.ChatCompletionMessage
+	messages map[string][]openai.ChatCompletionMessage
 }
 
-func (l *localMemory) Remember(ctx context.Context, message openai.ChatCompletionMessage) {
-	l.messages = append(l.messages, message)
+func (l *localMemory) Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) {
+	l.messages[userID] = append(l.messages[userID], message)
 }
 
-func (l *localMemory) Recall(ctx context.Context, n int) []openai.ChatCompletionMessage {
-	if n > len(l.messages) {
+func (l *localMemory) Recall(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage {
+	if n > len(l.messages[userID]) {
 		n = len(l.messages)
 	}
-	return l.messages[len(l.messages)-n:]
+	return l.messages[userID][len(l.messages[userID])-n:]
 }
 
-func (l *localMemory) Revoke(ctx context.Context, n int) []openai.ChatCompletionMessage {
-	if n > len(l.messages) {
+func (l *localMemory) Revoke(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage {
+	if n > len(l.messages[userID]) {
 		n = len(l.messages)
 	}
-	messages := l.messages[len(l.messages)-n:]
-	l.messages = l.messages[:len(l.messages)-n]
-	return messages
+	revokeMessages := l.messages[userID][len(l.messages[userID])-n:]
+	l.messages[userID] = l.messages[userID][:len(l.messages[userID])-n]
+	return revokeMessages
 }
 
 type MessageCore struct {
@@ -95,7 +97,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 		return linebot.NewTextMessage(""), nil
 	}
 
-	botResponse, err := m.Chat(ctx, userMessage)
+	botResponse, err := m.Chat(ctx, event.Source.UserID, userMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -104,13 +106,13 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 	return linebot.NewTextMessage(replyText), nil
 }
 
-func (m *MessageCore) Chat(ctx context.Context, message string) (string, error) {
+func (m *MessageCore) Chat(ctx context.Context, userID, message string) (string, error) {
 	newMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: message,
 	}
-	m.memory.Remember(ctx, newMessage)
-	messages := m.memory.Recall(ctx, m.memoryN)
+	m.memory.Remember(ctx, userID, newMessage)
+	messages := m.memory.Recall(ctx, userID, m.memoryN)
 	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       m.chatModel,
 		Messages:    messages,
@@ -122,7 +124,7 @@ func (m *MessageCore) Chat(ctx context.Context, message string) (string, error) 
 		return "", err
 	}
 	replyMessage := resp.Choices[0].Message
-	m.memory.Remember(ctx, replyMessage)
+	m.memory.Remember(ctx, userID, replyMessage)
 	return replyMessage.Content, nil
 }
 
