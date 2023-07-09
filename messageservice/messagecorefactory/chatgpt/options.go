@@ -1,32 +1,32 @@
 package chatgpt
 
-type WithOptoin func(*MessageCore)
+type WithOption func(*MessageCore)
 
-func WithMemory(memory Memory) WithOptoin {
+func WithMemory(memory Memory) WithOption {
 	return func(messageCore *MessageCore) {
 		messageCore.memory = memory
 	}
 }
 
-func WithMemoryN(memoryN int) WithOptoin {
+func WithMemoryN(memoryN int) WithOption {
 	return func(messageCore *MessageCore) {
 		messageCore.memoryN = memoryN
 	}
 }
 
-func WithChatModel(chatModel string) WithOptoin {
+func WithChatModel(chatModel string) WithOption {
 	return func(messageCore *MessageCore) {
 		messageCore.chatModel = chatModel
 	}
 }
 
-func WithChatToken(chatToken int) WithOptoin {
+func WithChatToken(chatToken int) WithOption {
 	return func(messageCore *MessageCore) {
 		messageCore.chatToken = chatToken
 	}
 }
 
-func WithChatTemperature(chatTemperature float32) WithOptoin {
+func WithChatTemperature(chatTemperature float32) WithOption {
 	return func(messageCore *MessageCore) {
 		messageCore.chatTemperature = chatTemperature
 	}

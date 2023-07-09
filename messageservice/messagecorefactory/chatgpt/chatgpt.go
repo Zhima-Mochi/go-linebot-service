@@ -64,7 +64,7 @@ type MessageCore struct {
 	audioModel      string
 }
 
-func NewMessageCore(client *openai.Client, options ...WithOptoin) *MessageCore {
+func NewMessageCore(client *openai.Client, options ...WithOption) *MessageCore {
 	core := defaultMessageCore
 	core.client = client
 	for _, option := range options {
