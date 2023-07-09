@@ -1,6 +1,7 @@
 package echo
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
@@ -10,7 +11,7 @@ import (
 type MessageCore struct {
 }
 
-func (m *MessageCore) Process(event *linebot.Event) (linebot.SendingMessage, error) {
+func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error) {
 	switch message := event.Message.(type) {
 	case *linebot.FileMessage:
 		return linebot.NewTextMessage(fmt.Sprintf("FileMessage: %s (%d byte)", message.FileName, message.FileSize)), nil

@@ -1,6 +1,7 @@
 package messagecorefactory
 
 import (
+	"context"
 	"errors"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -13,5 +14,5 @@ var (
 )
 
 type MessageCore interface {
-	Process(event *linebot.Event) (linebot.SendingMessage, error)
+	Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error)
 }

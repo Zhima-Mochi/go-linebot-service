@@ -1,6 +1,8 @@
 package messageservice
 
 import (
+	"context"
+
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory/echo"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -45,6 +47,6 @@ func (m *MessageService) ClearAllCustomMessageTypeCore() {
 	m.customMessageTypeCoreMap = make(map[linebot.MessageType]messagecorefactory.MessageCore)
 }
 
-func (m *MessageService) Process(event *linebot.Event) (linebot.SendingMessage, error) {
-	return m.GetCustomMessageTypeCore(event.Message.Type()).Process(event)
+func (m *MessageService) Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error) {
+	return m.GetCustomMessageTypeCore(event.Message.Type()).Process(ctx, event)
 }

@@ -73,8 +73,8 @@ func NewMessageCore(client *openai.Client, options ...WithOptoin) *MessageCore {
 	return &core
 }
 
-func (m *MessageCore) Process(event *linebot.Event) (linebot.SendingMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	userMessage := ""
 	replyText := ""
