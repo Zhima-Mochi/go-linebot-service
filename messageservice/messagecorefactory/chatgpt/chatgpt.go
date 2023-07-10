@@ -25,35 +25,53 @@ var (
 )
 
 type Memory interface {
-	Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage)
+	// Remember a message
+	Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) error
 	// Recall the last n messages
-	Recall(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage
+	Recall(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error)
 	// Revoke the last n messages
-	Revoke(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage
+	Revoke(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error)
+	// Forget the first n messages
+	Forget(ctx context.Context, userID string, n int) error
+	// GetSize returns the number of messages stored for a user
+	GetSize(ctx context.Context, userID string) (int, error)
 }
 
 type localMemory struct {
 	messages map[string][]openai.ChatCompletionMessage
 }
 
-func (l *localMemory) Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) {
+func (l *localMemory) Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) error {
 	l.messages[userID] = append(l.messages[userID], message)
+	return nil
 }
 
-func (l *localMemory) Recall(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage {
+func (l *localMemory) Recall(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
 	if n > len(l.messages[userID]) {
 		n = len(l.messages)
 	}
-	return l.messages[userID][len(l.messages[userID])-n:]
+	return l.messages[userID][len(l.messages[userID])-n:], nil
 }
 
-func (l *localMemory) Revoke(ctx context.Context, userID string, n int) []openai.ChatCompletionMessage {
+func (l *localMemory) Revoke(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
 	if n > len(l.messages[userID]) {
 		n = len(l.messages)
 	}
 	revokeMessages := l.messages[userID][len(l.messages[userID])-n:]
 	l.messages[userID] = l.messages[userID][:len(l.messages[userID])-n]
-	return revokeMessages
+	return revokeMessages, nil
+}
+
+func (l *localMemory) Forget(ctx context.Context, userID string, n int) error {
+	if n > len(l.messages[userID]) {
+		n = len(l.messages)
+	}
+	l.messages[userID] = l.messages[userID][n:]
+	return nil
+}
+
+func (l *localMemory) GetSize(ctx context.Context, userID string) (int, error) {
+	return len(l.messages[userID]), nil
 }
 
 type MessageCore struct {
@@ -84,7 +102,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 	case *linebot.TextMessage:
 		userMessage = message.Text
 	case *linebot.AudioMessage:
-		text, err := m.ConvertAudioToText(ctx, message.OriginalContentURL)
+		text, err := m.convertAudioToText(ctx, message.OriginalContentURL)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +115,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 		return linebot.NewTextMessage(""), nil
 	}
 
-	botResponse, err := m.Chat(ctx, event.Source.UserID, userMessage)
+	botResponse, err := m.chat(ctx, event.Source.UserID, userMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +124,19 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 	return linebot.NewTextMessage(replyText), nil
 }
 
-func (m *MessageCore) Chat(ctx context.Context, userID, message string) (string, error) {
+func (m *MessageCore) chat(ctx context.Context, userID, message string) (string, error) {
 	newMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: message,
 	}
-	m.memory.Remember(ctx, userID, newMessage)
-	messages := m.memory.Recall(ctx, userID, m.memoryN)
+	err := m.memory.Remember(ctx, userID, newMessage)
+	if err != nil {
+		return "", err
+	}
+	messages, err := m.memory.Recall(ctx, userID, m.memoryN)
+	if err != nil {
+		return "", err
+	}
 	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       m.chatModel,
 		Messages:    messages,
@@ -124,11 +148,21 @@ func (m *MessageCore) Chat(ctx context.Context, userID, message string) (string,
 		return "", err
 	}
 	replyMessage := resp.Choices[0].Message
-	m.memory.Remember(ctx, userID, replyMessage)
+	err = m.memory.Remember(ctx, userID, replyMessage)
+	if err != nil {
+		return "", err
+	}
+
+	if len(messages)+1 > m.memoryN {
+		err = m.memory.Forget(ctx, userID, len(messages)-m.memoryN)
+		if err != nil {
+			return "", err
+		}
+	}
 	return replyMessage.Content, nil
 }
 
-func (m *MessageCore) ConvertAudioToText(ctx context.Context, audioURL string) (string, error) {
+func (m *MessageCore) convertAudioToText(ctx context.Context, audioURL string) (string, error) {
 	audioReader, err := downloadAudio(audioURL)
 	if err != nil {
 		return "", err
