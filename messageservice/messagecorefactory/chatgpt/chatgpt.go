@@ -2,8 +2,6 @@ package chatgpt
 
 import (
 	"context"
-	"io"
-	"net/http"
 
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -89,7 +87,8 @@ func (l *localMemory) GetSize(ctx context.Context, userID string) (int, error) {
 }
 
 type MessageCore struct {
-	client          *openai.Client
+	openaiClient    *openai.Client
+	linebotClient   *linebot.Client
 	memory          Memory
 	memoryN         int
 	chatModel       string
@@ -98,9 +97,11 @@ type MessageCore struct {
 	audioModel      string
 }
 
-func NewMessageCore(client *openai.Client, options ...WithOption) *MessageCore {
+func NewMessageCore(openaiClient *openai.Client, linebotClient *linebot.Client, options ...WithOption) *MessageCore {
 	core := defaultMessageCore
-	core.client = client
+	core.openaiClient = openaiClient
+	core.linebotClient = linebotClient
+
 	for _, option := range options {
 		option(&core)
 	}
@@ -108,16 +109,13 @@ func NewMessageCore(client *openai.Client, options ...WithOption) *MessageCore {
 }
 
 func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error) {
-	// timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	// defer cancel()
-	timeoutCtx := ctx
 	userMessage := ""
 	replyText := ""
 	switch message := event.Message.(type) {
 	case *linebot.TextMessage:
 		userMessage = message.Text
 	case *linebot.AudioMessage:
-		text, err := m.convertAudioToText(timeoutCtx, message.OriginalContentURL)
+		text, err := m.convertAudioToText(ctx, message.OriginalContentURL)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +128,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 		return linebot.NewTextMessage(""), nil
 	}
 
-	botResponse, err := m.chat(timeoutCtx, event.Source.UserID, userMessage)
+	botResponse, err := m.chat(ctx, event.Source.UserID, userMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +150,7 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 	if err != nil {
 		return "", err
 	}
-	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := m.openaiClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       m.chatModel,
 		Messages:    messages,
 		MaxTokens:   m.chatToken,
@@ -176,34 +174,22 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 	return replyMessage.Content, nil
 }
 
-func (m *MessageCore) convertAudioToText(ctx context.Context, audioURL string) (string, error) {
-	audioReader, err := downloadAudio(audioURL)
+func (m *MessageCore) convertAudioToText(ctx context.Context, messageID string) (string, error) {
+	call := m.linebotClient.GetMessageContent(messageID)
+
+	callResp, err := call.Do()
 	if err != nil {
 		return "", err
 	}
 
 	req := openai.AudioRequest{
 		Model:  openai.Whisper1,
-		Reader: audioReader,
+		Reader: callResp.Content,
 	}
 
-	resp, err := m.client.CreateTranscription(ctx, req)
+	transResp, err := m.openaiClient.CreateTranscription(ctx, req)
 	if err != nil {
 		return "", err
 	}
-	return resp.Text, nil
-}
-
-func downloadAudio(audioURL string) (io.Reader, error) {
-	response, err := http.Get(audioURL)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, messagecorefactory.ErrorAudioDownloadFailed
-	}
-
-	return response.Body, nil
+	return transResp.Text, nil
 }
