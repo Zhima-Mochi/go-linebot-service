@@ -22,17 +22,25 @@ type MessageService interface {
 type LineBotService struct {
 	LineBotClient  *linebot.Client
 	MessageService MessageService
+	maxGoRoutines  int32
+	goroutinePool  chan struct{}
 }
 
-func NewLineBotService(lineBotClient *linebot.Client, messageService MessageService) *LineBotService {
-	return &LineBotService{
+func NewLineBotService(lineBotClient *linebot.Client, messageService MessageService, options ...WithOption) *LineBotService {
+	l := &LineBotService{
 		LineBotClient:  lineBotClient,
 		MessageService: messageService,
+		maxGoRoutines:  10,
 	}
+	for _, option := range options {
+		option(l)
+	}
+	l.goroutinePool = make(chan struct{}, l.maxGoRoutines)
+	return l
 }
 
 func (l *LineBotService) Do(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
+	ctx := context.Background()
 	events, err := l.LineBotClient.ParseRequest(req)
 	if err != nil {
 		log.Print(err)
@@ -44,15 +52,30 @@ func (l *LineBotService) Do(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	l.handleEvents(ctx, events)
+}
+
+func (l *LineBotService) handleEvents(ctx context.Context, events []*linebot.Event) {
 	for _, event := range events {
-		if event.Type == linebot.EventTypeMessage {
-			message, err := l.MessageService.Process(ctx, event)
-			if err != nil {
-				log.Print(err)
-			}
-			if _, err := l.LineBotClient.ReplyMessage(event.ReplyToken, message).Do(); err != nil {
-				log.Print(err)
-			}
+		l.goroutinePool <- struct{}{}
+		l.handleEvent(ctx, event)
+	}
+}
+
+func (l *LineBotService) handleEvent(ctx context.Context, event *linebot.Event) {
+	defer func() {
+		<-l.goroutinePool
+	}()
+
+	if event.Type == linebot.EventTypeMessage {
+		message, err := l.MessageService.Process(ctx, event)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		if _, err := l.LineBotClient.ReplyMessage(event.ReplyToken, message).Do(); err != nil {
+			log.Print(err)
+			return
 		}
 	}
 }
