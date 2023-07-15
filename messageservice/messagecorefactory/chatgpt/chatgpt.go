@@ -48,14 +48,14 @@ func (l *localMemory) Remember(ctx context.Context, userID string, message opena
 
 func (l *localMemory) Recall(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
 	if n > len(l.messages[userID]) {
-		n = len(l.messages)
+		n = len(l.messages[userID])
 	}
 	return l.messages[userID][len(l.messages[userID])-n:], nil
 }
 
 func (l *localMemory) Revoke(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
 	if n > len(l.messages[userID]) {
-		n = len(l.messages)
+		n = len(l.messages[userID])
 	}
 	revokeMessages := l.messages[userID][len(l.messages[userID])-n:]
 	l.messages[userID] = l.messages[userID][:len(l.messages[userID])-n]
@@ -94,7 +94,7 @@ func NewMessageCore(client *openai.Client, options ...WithOption) *MessageCore {
 }
 
 func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	userMessage := ""
 	replyText := ""
@@ -102,7 +102,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 	case *linebot.TextMessage:
 		userMessage = message.Text
 	case *linebot.AudioMessage:
-		text, err := m.convertAudioToText(ctx, message.OriginalContentURL)
+		text, err := m.convertAudioToText(timeoutCtx, message.OriginalContentURL)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +115,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 		return linebot.NewTextMessage(""), nil
 	}
 
-	botResponse, err := m.chat(ctx, event.Source.UserID, userMessage)
+	botResponse, err := m.chat(timeoutCtx, event.Source.UserID, userMessage)
 	if err != nil {
 		return nil, err
 	}
