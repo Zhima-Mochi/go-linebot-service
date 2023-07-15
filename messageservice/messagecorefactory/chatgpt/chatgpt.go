@@ -115,7 +115,7 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 	case *linebot.TextMessage:
 		userMessage = message.Text
 	case *linebot.AudioMessage:
-		text, err := m.convertAudioToText(ctx, message.OriginalContentURL)
+		text, err := m.convertAudioToText(ctx, message.ID)
 		if err != nil {
 			return nil, err
 		}
