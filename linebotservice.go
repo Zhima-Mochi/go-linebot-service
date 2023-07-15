@@ -79,7 +79,3 @@ func (l *LineBotService) handleEvent(ctx context.Context, event *linebot.Event) 
 		}
 	}
 }
-
-func (l *LineBotService) ReplyMessage(ctx context.Context, replyToken string, message linebot.SendingMessage) (*linebot.BasicResponse, error) {
-	return l.LineBotClient.ReplyMessage(replyToken, message).WithContext(ctx).Do()
-}
