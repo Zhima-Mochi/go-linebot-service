@@ -39,7 +39,7 @@ func NewLineBotService(lineBotClient *linebot.Client, messageService MessageServ
 	return l
 }
 
-func (l *LineBotService) Do(w http.ResponseWriter, req *http.Request) {
+func (l *LineBotService) HandleEvents(w http.ResponseWriter, req *http.Request) {
 	ctx := context.Background()
 	events, err := l.LineBotClient.ParseRequest(req)
 	if err != nil {
@@ -73,9 +73,13 @@ func (l *LineBotService) handleEvent(ctx context.Context, event *linebot.Event) 
 			log.Print(err)
 			return
 		}
-		if _, err := l.LineBotClient.ReplyMessage(event.ReplyToken, message).Do(); err != nil {
+		if _, err := l.LineBotClient.ReplyMessage(event.ReplyToken, message).WithContext(ctx).Do(); err != nil {
 			log.Print(err)
 			return
 		}
 	}
+}
+
+func (l *LineBotService) ReplyMessage(ctx context.Context, replyToken string, message linebot.SendingMessage) (*linebot.BasicResponse, error) {
+	return l.LineBotClient.ReplyMessage(replyToken, message).WithContext(ctx).Do()
 }

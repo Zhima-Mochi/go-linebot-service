@@ -23,7 +23,7 @@ import (
 )
 
 // Create a Line bot client
-client, err := linebot.New("YOUR_CHANNEL_SECRET", "YOUR_CHANNEL_ACCESS_TOKEN")
+linebotClient, err := linebot.New("YOUR_CHANNEL_SECRET", "YOUR_CHANNEL_ACCESS_TOKEN")
 if err != nil {
     log.Fatal(err)
 }
@@ -34,18 +34,18 @@ messageService := messageservice.NewMessageService()
 
 // Set another default message core
 openaiClient := openai.NewClient("sk-xxx")
-messageService.SetDefaultMessageCore(chatgpt.NewMessageCore(openaiClient))
+messageService.SetDefaultMessageCore(chatgpt.NewMessageCore(openaiClient, linebotClient))
 
 // Create a LineBotService instance
 bot := linebotservice.NewLineBotService(client, messageService)
 ```
 
-You can then use the `Do` method of the `LineBotService` instance to handle incoming HTTP requests:
+You can then use the `HandleEvents` method of the `LineBotService` instance to handle incoming HTTP requests:
 
 ```go
 http.HandleFunc("/callback", func(w http.ResponseWriter, req *http.Request) {
-    bot.Do(w, req)
+    bot.HandleEvents(w, req)
 })
 ```
 
-The `Do` method parses the Line bot events from the HTTP request, processes messages using the message service, and replies to the events with the processed messages.
+The `HandleEvents` method parses the Line bot events from the HTTP request, processes messages using the message service, and replies to the events with the processed messages.
