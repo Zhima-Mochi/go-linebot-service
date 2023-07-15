@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -16,7 +15,7 @@ var (
 		memory: &localMemory{
 			messages: make(map[string][]openai.ChatCompletionMessage),
 		},
-		memoryN:         3,
+		memoryN:         10,
 		chatModel:       openai.GPT3Dot5Turbo0613,
 		chatToken:       150,
 		chatTemperature: 0.9,
@@ -42,11 +41,17 @@ type localMemory struct {
 }
 
 func (l *localMemory) Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) error {
+	if l.messages == nil {
+		l.messages = make(map[string][]openai.ChatCompletionMessage)
+	}
 	l.messages[userID] = append(l.messages[userID], message)
 	return nil
 }
 
 func (l *localMemory) Recall(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
+	if l.messages == nil {
+		l.messages = make(map[string][]openai.ChatCompletionMessage)
+	}
 	if n > len(l.messages[userID]) {
 		n = len(l.messages[userID])
 	}
@@ -54,6 +59,9 @@ func (l *localMemory) Recall(ctx context.Context, userID string, n int) ([]opena
 }
 
 func (l *localMemory) Revoke(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
+	if l.messages == nil {
+		l.messages = make(map[string][]openai.ChatCompletionMessage)
+	}
 	if n > len(l.messages[userID]) {
 		n = len(l.messages[userID])
 	}
@@ -63,6 +71,9 @@ func (l *localMemory) Revoke(ctx context.Context, userID string, n int) ([]opena
 }
 
 func (l *localMemory) Forget(ctx context.Context, userID string, n int) error {
+	if l.messages == nil {
+		l.messages = make(map[string][]openai.ChatCompletionMessage)
+	}
 	if n > len(l.messages[userID]) {
 		n = len(l.messages)
 	}
@@ -71,6 +82,9 @@ func (l *localMemory) Forget(ctx context.Context, userID string, n int) error {
 }
 
 func (l *localMemory) GetSize(ctx context.Context, userID string) (int, error) {
+	if l.messages == nil {
+		l.messages = make(map[string][]openai.ChatCompletionMessage)
+	}
 	return len(l.messages[userID]), nil
 }
 
@@ -94,8 +108,9 @@ func NewMessageCore(client *openai.Client, options ...WithOption) *MessageCore {
 }
 
 func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebot.SendingMessage, error) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
+	// timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// defer cancel()
+	timeoutCtx := ctx
 	userMessage := ""
 	replyText := ""
 	switch message := event.Message.(type) {
@@ -142,7 +157,6 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 		Messages:    messages,
 		MaxTokens:   m.chatToken,
 		Temperature: m.chatTemperature,
-		Stop:        []string{"\n"},
 	})
 	if err != nil {
 		return "", err
