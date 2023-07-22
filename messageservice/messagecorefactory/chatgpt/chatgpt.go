@@ -10,8 +10,8 @@ import (
 
 var (
 	defaultMessageCore = MessageCore{
-		memory: &localMemory{
-			messages: make(map[string][]openai.ChatCompletionMessage),
+		memory: &LocalMemory{
+			Messages: make(map[string][]openai.ChatCompletionMessage),
 		},
 		memoryN:         10,
 		chatModel:       openai.GPT3Dot5Turbo0613,
@@ -34,56 +34,56 @@ type Memory interface {
 	GetSize(ctx context.Context, userID string) (int, error)
 }
 
-type localMemory struct {
-	messages map[string][]openai.ChatCompletionMessage
+type LocalMemory struct {
+	Messages map[string][]openai.ChatCompletionMessage
 }
 
-func (l *localMemory) Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) error {
-	if l.messages == nil {
-		l.messages = make(map[string][]openai.ChatCompletionMessage)
+func (l *LocalMemory) Remember(ctx context.Context, userID string, message openai.ChatCompletionMessage) error {
+	if l.Messages == nil {
+		l.Messages = make(map[string][]openai.ChatCompletionMessage)
 	}
-	l.messages[userID] = append(l.messages[userID], message)
+	l.Messages[userID] = append(l.Messages[userID], message)
 	return nil
 }
 
-func (l *localMemory) Recall(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
-	if l.messages == nil {
-		l.messages = make(map[string][]openai.ChatCompletionMessage)
+func (l *LocalMemory) Recall(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
+	if l.Messages == nil {
+		l.Messages = make(map[string][]openai.ChatCompletionMessage)
 	}
-	if n > len(l.messages[userID]) {
-		n = len(l.messages[userID])
+	if n > len(l.Messages[userID]) {
+		n = len(l.Messages[userID])
 	}
-	return l.messages[userID][len(l.messages[userID])-n:], nil
+	return l.Messages[userID][len(l.Messages[userID])-n:], nil
 }
 
-func (l *localMemory) Revoke(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
-	if l.messages == nil {
-		l.messages = make(map[string][]openai.ChatCompletionMessage)
+func (l *LocalMemory) Revoke(ctx context.Context, userID string, n int) ([]openai.ChatCompletionMessage, error) {
+	if l.Messages == nil {
+		l.Messages = make(map[string][]openai.ChatCompletionMessage)
 	}
-	if n > len(l.messages[userID]) {
-		n = len(l.messages[userID])
+	if n > len(l.Messages[userID]) {
+		n = len(l.Messages[userID])
 	}
-	revokeMessages := l.messages[userID][len(l.messages[userID])-n:]
-	l.messages[userID] = l.messages[userID][:len(l.messages[userID])-n]
+	revokeMessages := l.Messages[userID][len(l.Messages[userID])-n:]
+	l.Messages[userID] = l.Messages[userID][:len(l.Messages[userID])-n]
 	return revokeMessages, nil
 }
 
-func (l *localMemory) Forget(ctx context.Context, userID string, n int) error {
-	if l.messages == nil {
-		l.messages = make(map[string][]openai.ChatCompletionMessage)
+func (l *LocalMemory) Forget(ctx context.Context, userID string, n int) error {
+	if l.Messages == nil {
+		l.Messages = make(map[string][]openai.ChatCompletionMessage)
 	}
-	if n > len(l.messages[userID]) {
-		n = len(l.messages)
+	if n > len(l.Messages[userID]) {
+		n = len(l.Messages)
 	}
-	l.messages[userID] = l.messages[userID][n:]
+	l.Messages[userID] = l.Messages[userID][n:]
 	return nil
 }
 
-func (l *localMemory) GetSize(ctx context.Context, userID string) (int, error) {
-	if l.messages == nil {
-		l.messages = make(map[string][]openai.ChatCompletionMessage)
+func (l *LocalMemory) GetSize(ctx context.Context, userID string) (int, error) {
+	if l.Messages == nil {
+		l.Messages = make(map[string][]openai.ChatCompletionMessage)
 	}
-	return len(l.messages[userID]), nil
+	return len(l.Messages[userID]), nil
 }
 
 type MessageCore struct {
@@ -95,6 +95,7 @@ type MessageCore struct {
 	chatToken       int
 	chatTemperature float32
 	audioModel      string
+	systemMessage   string
 }
 
 func NewMessageCore(openaiClient *openai.Client, linebotClient *linebot.Client, options ...WithOption) *MessageCore {
@@ -138,6 +139,13 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 }
 
 func (m *MessageCore) chat(ctx context.Context, userID, message string) (string, error) {
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: m.systemMessage,
+		},
+	}
+
 	newMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: message,
@@ -146,10 +154,13 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 	if err != nil {
 		return "", err
 	}
-	messages, err := m.memory.Recall(ctx, userID, m.memoryN)
+
+	history, err := m.memory.Recall(ctx, userID, m.memoryN)
 	if err != nil {
 		return "", err
 	}
+	messages = append(messages, history...)
+
 	resp, err := m.openaiClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       m.chatModel,
 		Messages:    messages,

@@ -31,3 +31,9 @@ func WithChatTemperature(chatTemperature float32) WithOption {
 		messageCore.chatTemperature = chatTemperature
 	}
 }
+
+func WithSystemMessage(systemMessage string) WithOption {
+	return func(messageCore *MessageCore) {
+		messageCore.systemMessage = systemMessage
+	}
+}
