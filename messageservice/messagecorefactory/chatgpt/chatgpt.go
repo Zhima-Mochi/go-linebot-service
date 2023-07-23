@@ -2,6 +2,9 @@ package chatgpt
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -187,20 +190,44 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 
 func (m *MessageCore) convertAudioToText(ctx context.Context, messageID string) (string, error) {
 	call := m.linebotClient.GetMessageContent(messageID)
-
 	callResp, err := call.Do()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get message content: %w", err)
+	}
+
+	// Read the content
+	content, err := ioutil.ReadAll(callResp.Content)
+	if err != nil {
+		return "", fmt.Errorf("failed to read message content: %w", err)
+	}
+
+	// Create a file
+	file, err := os.Create(messageID + ".m4a")
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer file.Close()
+
+	// Write the content to the file
+	_, err = file.Write(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to write content to file: %w", err)
 	}
 
 	req := openai.AudioRequest{
 		Model:  openai.Whisper1,
-		Reader: callResp.Content,
+		Reader: file,
 	}
-
 	transResp, err := m.openaiClient.CreateTranscription(ctx, req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create transcription: %w", err)
 	}
+
+	// Delete the file
+	err = os.Remove(messageID + ".m4a")
+	if err != nil {
+		return "", fmt.Errorf("failed to delete file: %w", err)
+	}
+
 	return transResp.Text, nil
 }
