@@ -215,8 +215,8 @@ func (m *MessageCore) convertAudioToText(ctx context.Context, messageID string) 
 	}
 
 	req := openai.AudioRequest{
-		Model:  openai.Whisper1,
-		Reader: file,
+		Model:    openai.Whisper1,
+		FilePath: file.Name(),
 	}
 	transResp, err := m.openaiClient.CreateTranscription(ctx, req)
 	if err != nil {
