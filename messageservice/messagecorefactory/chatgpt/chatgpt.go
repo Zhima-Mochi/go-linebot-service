@@ -164,15 +164,24 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 	}
 	messages = append(messages, history...)
 
-	resp, err := m.openaiClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model:       m.chatModel,
-		Messages:    messages,
-		MaxTokens:   m.chatToken,
-		Temperature: m.chatTemperature,
-	})
+	var resp openai.ChatCompletionResponse
+	for i := 0; i != 3; i++ {
+		resp, err = m.openaiClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model:       m.chatModel,
+			Messages:    messages,
+			MaxTokens:   m.chatToken,
+			Temperature: m.chatTemperature,
+		})
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
+		m.memory.Revoke(ctx, userID, 1)
+		m.memory.Forget(ctx, userID, 1)
 		return "", err
 	}
+
 	replyMessage := resp.Choices[0].Message
 	err = m.memory.Remember(ctx, userID, replyMessage)
 	if err != nil {
