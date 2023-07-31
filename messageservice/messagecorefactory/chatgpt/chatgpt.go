@@ -187,7 +187,7 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 	if err != nil {
 		return "", err
 	}
-	go func() {
+	go func(ctx context.Context) {
 		memoryLen, err := m.memory.GetSize(ctx, userID)
 		if err != nil {
 			return
@@ -198,7 +198,7 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 				return
 			}
 		}
-	}()
+	}(context.Background())
 	return replyMessage.Content, nil
 }
 
