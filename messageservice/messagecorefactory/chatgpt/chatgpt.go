@@ -187,13 +187,18 @@ func (m *MessageCore) chat(ctx context.Context, userID, message string) (string,
 	if err != nil {
 		return "", err
 	}
-
-	if len(messages)+1 > m.memoryN {
-		err = m.memory.Forget(ctx, userID, len(messages)-m.memoryN)
+	go func() {
+		memoryLen, err := m.memory.GetSize(ctx, userID)
 		if err != nil {
-			return "", err
+			return
 		}
-	}
+		if memoryLen > m.memoryN {
+			err = m.memory.Forget(ctx, userID, memoryLen-m.memoryN)
+			if err != nil {
+				return
+			}
+		}
+	}()
 	return replyMessage.Content, nil
 }
 
