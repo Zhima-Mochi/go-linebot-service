@@ -3,8 +3,9 @@ package chatgpt
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/Zhima-Mochi/go-linebot-service/messageservice/messagecorefactory"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -125,6 +126,13 @@ func (m *MessageCore) Process(ctx context.Context, event *linebot.Event) (linebo
 		}
 		userMessage = text
 		replyText += "🎤: " + text + "\n"
+	case *linebot.StickerMessage:
+		const stickerPrefix = "sticker to you: "
+		if len(message.Keywords) == 0 {
+			userMessage = stickerPrefix
+		} else {
+			userMessage = fmt.Sprintf("%s%s", stickerPrefix, strings.Join(message.Keywords, " "))
+		}
 	default:
 		return nil, messagecorefactory.ErrorMessageTypeNotSupported
 	}
@@ -210,7 +218,7 @@ func (m *MessageCore) convertAudioToText(ctx context.Context, messageID string) 
 	}
 
 	// Read the content
-	content, err := ioutil.ReadAll(callResp.Content)
+	content, err := io.ReadAll(callResp.Content)
 	if err != nil {
 		return "", fmt.Errorf("failed to read message content: %w", err)
 	}
